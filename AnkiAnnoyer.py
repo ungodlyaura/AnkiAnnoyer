@@ -1,15 +1,15 @@
 import threading
-import PySimpleGUI as sg
 import keyboard
 import time
 import requests
 from glom import glom
+from PyQt5 import QtCore, QtGui, QtWidgets
 
 ############################################
 
 # Timing
 time_limit = 60  # seconds
-answer_cooldown = 30  # seconds
+answer_cooldown = 3  # seconds
 auto_show_answer = True
 auto_show_time = time_limit + answer_cooldown  # seconds
 auto_rate_again = True
@@ -169,73 +169,43 @@ def getNewText():
         current_text = "no card"
 
 
-def updateWindow():
-    global text_color
-    print(current_text)
+class AnkiWindow(QtWidgets.QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowFlags(
+            QtCore.Qt.FramelessWindowHint |
+            QtCore.Qt.WindowStaysOnTopHint |
+            QtCore.Qt.Tool |
+            QtCore.Qt.WindowTransparentForInput  # Ensures the window does not accept input
+        )
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.setAttribute(QtCore.Qt.WA_ShowWithoutActivating)
+        self.setFocusPolicy(QtCore.Qt.NoFocus)
+        self.layout = QtWidgets.QVBoxLayout()
+        self.setLayout(self.layout)
+        self.text_widget = QtWidgets.QLabel("", self)
+        self.text_widget.setAlignment(QtCore.Qt.AlignCenter)
+        self.text_widget.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)  # Make the text widget ignore mouse events
+        self.layout.addWidget(self.text_widget)
+        self.update_text()
+        self.showFullScreen()
 
-    if key_watcher.answer_showing:
-        font_size = int(min(1920 / (len(current_text) * text_length_multiplier2), 450))
-        layout = [
-            [
-                sg.Text(
-                    glom(getCurrentCard(), question_pathway),
-                    size=len(current_text) * text_length_multiplier2,
-                    background_color="green",
-                    text_color=text_color,
-                    expand_x=True,
-                    expand_y=True,
-                    font=("BIZ UDGothic", font_size, "")
-                )
-            ],
-            [
-                sg.Text(
-                    current_text,
-                    size=len(current_text) * text_length_multiplier2,
-                    background_color="green",
-                    text_color=text_color,
-                    expand_x=True,
-                    expand_y=True,
-                    font=("BIZ UDGothic", font_size, "")
-                )
-            ]
-        ]
-    else:
+    def update_text(self):
+        global current_text
         font_size = int(min(1920 / (len(current_text) * text_length_multiplier), 450))
-        layout = [
-            [
-                sg.Text(
-                    current_text,
-                    size=len(current_text) * text_length_multiplier,
-                    background_color="green",
-                    text_color=text_color,
-                    expand_x=True,
-                    expand_y=True,
-                    font=("BIZ UDGothic", font_size, "")
-                )
-            ]
-        ]
+        font = QtGui.QFont("BIZ UDGothic", font_size)
+        self.text_widget.setFont(font)
+        self.text_widget.setText(current_text)
+        self.text_widget.setStyleSheet(f"color: {text_color}; background: transparent;")  # Ensure background is transparent
 
-    window = sg.Window(
-        "Window Title",
-        layout,
-        use_default_focus=False,
-        transparent_color="green",
-        keep_on_top=True,
-        no_titlebar=True,
-        background_color="green",
-        alpha_channel=0
-    )
-
-    window.FocusSet = False
-    return window
-
+    def set_opacity(self, opacity):
+        self.setWindowOpacity(opacity)
 
 def windowThing():
     global current_text
+    app = QtWidgets.QApplication([])
+    window = AnkiWindow()
     last_text = current_text
-
-    window = updateWindow()
-    window.read(timeout=10)
 
     startTime = time.time()
 
@@ -243,6 +213,7 @@ def windowThing():
         now = time.time()
         fadeAmount = min((now - startTime) / time_limit, 1)
         getNewText()
+        window.update_text()
         if auto_show_answer and not key_watcher.answer_showing and now - startTime > auto_show_time:
             key_watcher.answer_showing = True
             showAnswer()
@@ -252,15 +223,17 @@ def windowThing():
             rateCard(1)
             getNewText()
         if key_watcher.answer_showing and instant_answer:
-            window.set_alpha(1)
+            window.set_opacity(1)
         else:
-            window.set_alpha(fadeAmount)
+            window.set_opacity(fadeAmount)
         while key_watcher.paused:
-            window.set_alpha(0)
+            window.set_opacity(0)
             time.sleep(0.1)
-    window.close()  # close the window
+        QtCore.QCoreApplication.processEvents()
+    window.close()
 
     return current_text
+
 
 
 # checks if ctrl + shift + . has been called
