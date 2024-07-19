@@ -38,7 +38,6 @@ instant_answer = True  # True instantly show the answer, False fade the answer i
 ANKI_URL = "http://localhost:8765"
 
 #  TODO
-#  don't destroy window, use same one to make faster
 #  stop use of ankiconnect, make into addon
 
 
