@@ -37,9 +37,6 @@ instant_answer = True  # True instantly show the answer, False fade the answer i
 
 ANKI_URL = "http://localhost:8765"
 
-#  TODO
-#  stop use of ankiconnect, make into addon
-
 
 def getCurrentCard():
     payload = {
@@ -200,10 +197,11 @@ class AnkiWindow(QtWidgets.QWidget):
     def set_opacity(self, opacity):
         self.setWindowOpacity(opacity)
 
+app = QtWidgets.QApplication([])
+window = AnkiWindow()
+
 def windowThing():
     global current_text
-    app = QtWidgets.QApplication([])
-    window = AnkiWindow()
     last_text = current_text
 
     startTime = time.time()
@@ -229,8 +227,7 @@ def windowThing():
             window.set_opacity(0)
             time.sleep(0.1)
         QtCore.QCoreApplication.processEvents()
-    window.close()
-
+    window.set_opacity(0)
     return current_text
 
 
@@ -246,3 +243,5 @@ while key_watcher.running:
         current_text = windowThing()
     if key_watcher.answer_showing:
         current_text = windowThing()
+
+window.close()
