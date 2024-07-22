@@ -1,9 +1,29 @@
+import os
+import sys
 import threading
-import keyboard
 import time
 import requests
+
+try:
+    from glom import glom
+except ImportError:
+    print("Trying to install glom")
+    os.system('python -m pip install glom')
 from glom import glom
+
+try:
+    from PyQt5 import QtCore, QtGui, QtWidgets
+except ImportError:
+    print("Trying to install PyQt5")
+    os.system('python -m pip install PyQt5')
 from PyQt5 import QtCore, QtGui, QtWidgets
+
+try:
+    import keyboard
+except ImportError:
+    print("Trying to install keyboard")
+    os.system('python -m pip install keyboard')
+import keyboard
 
 ############################################
 
@@ -25,11 +45,11 @@ rate_easy_keybind = ';'
 undo_answer_keybind = 'ctrl+\''
 # Text Type
 text_color = "red"
-text_length_multiplier = 2  # 1 for english 2 for japanese
-text_length_multiplier2 = 1  # for showing the answer
+text_length_multiplier = 2  # (question) 1 for english 2 for japanese
+text_length_multiplier2 = 1  # (answer)
 # Pathway
-question_pathway = 'result.fields.keyword.value'  # change this to the pathway of your deck's question and below one to the answer
-answer_pathway = 'result.fields.kanji.value'
+question_value = 'keyword'  # edit any card and place the field value you want as question/answer (cap sensitive)
+answer_value = 'kanji'
 # Other
 instant_answer = True  # True instantly show the answer, False fade the answer in over time
 
@@ -147,20 +167,27 @@ key_watcher_thread = threading.Thread(target=key_watcher.start_watching)
 key_watcher_thread.start()
 
 current_text = None
+viewing_card = True
 while not current_text:
     try:
-        current_text = glom(getCurrentCard(), question_pathway)
+        current_text = glom(getCurrentCard(), 'result.fields.'+question_value+'.value')
+    except KeyboardInterrupt:
+        break
     except:
-        pass
+        if viewing_card:
+            viewing_card = False
+            print("Start a studying session! \nSelected question value: "+question_value+" \nSelected answer value: "+answer_value)
+        if not key_watcher.running:
+            break
 
 
 def getNewText():
     global current_text
     try:
         if key_watcher.answer_showing:
-            current_text = glom(getCurrentCard(), answer_pathway)
+            current_text = glom(getCurrentCard(), 'result.fields.'+answer_value+'.value')
         else:
-            current_text = glom(getCurrentCard(), question_pathway)
+            current_text = glom(getCurrentCard(), 'result.fields.'+question_value+'.value')
     except:
         current_text = "no card"
 
