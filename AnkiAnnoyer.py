@@ -29,20 +29,20 @@ import keyboard
 
 # Timing
 time_limit = 60  # seconds
-answer_cooldown = 3  # seconds
+answer_cooldown = 30  # seconds
 auto_show_answer = True
 auto_show_time = time_limit + answer_cooldown  # seconds
 auto_rate_again = True
 auto_rate_time = 30
 # Keybindings
-close_app_keybind = 'ctrl+.'  # Don't use numpad '.'
-pause_app_keybind = 'ctrl+/'
-show_answer_keybind = '\''  # numbers are for numpad
-rate_again_keybind = '['
-rate_bad_keybind = ']'
-rate_good_keybind = '\\'
-rate_easy_keybind = ';'
-undo_answer_keybind = 'ctrl+\''
+close_app_keybind = 'f21'  # Use + between combinations. Numbers are for num pad.
+pause_app_keybind = 'f20'
+show_answer_keybind = 'f14'
+rate_again_keybind = 'f15'
+rate_bad_keybind = 'f16'
+rate_good_keybind = 'f17'
+rate_easy_keybind = 'f18'
+undo_answer_keybind = 'f19'
 # Text Type
 text_color = "red"
 text_length_multiplier = 2  # (question) 1 for english 2 for japanese
