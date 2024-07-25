@@ -196,6 +196,7 @@ class AnkiWindow(QtWidgets.QWidget):
 
         self.showFullScreen()
         self.update_text()
+        self.set_opacity(0)
 
     def update_text(self):
         global question_current_text, text_color, key_watcher, text_size
@@ -275,14 +276,17 @@ async def main():
             if not key_watcher.running:
                 break
             await asyncio.sleep(0.1)
+            QtCore.QCoreApplication.processEvents()
 
     while key_watcher.running:
         print("cooldown!")
         while key_watcher.paused:
+            QtCore.QCoreApplication.processEvents()
             await asyncio.sleep(0.1)
         startTime = time.time()
         now = time.time()
         while not now - startTime > answer_cooldown and key_watcher.running and not key_watcher.answer_showing:
+            QtCore.QCoreApplication.processEvents()
             window.update_text()
             await asyncio.sleep(0.1)
             now = time.time()
