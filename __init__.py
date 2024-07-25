@@ -4,11 +4,18 @@
 from aqt import mw
 import os
 import time
+import sys
 
 try:
     import keyboard
 except ImportError:
-    os.system('python -m pip install keyboard')
+    print("##########################################################################################################")
+    script_path = os.path.dirname(os.path.realpath(__file__))
+    sys.path.insert(0,script_path)
+    print(sys.path)
+    print("##########################################################################################################")
+
+    # os.system('python -m pip install keyboard')
 import keyboard
 
 try:
