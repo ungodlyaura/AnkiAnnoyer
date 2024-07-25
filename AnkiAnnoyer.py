@@ -32,8 +32,8 @@ except ImportError:
 import keyboard
 
 # Timing
-time_limit = 12  # seconds
-answer_cooldown = 6  # seconds
+time_limit = 120  # seconds
+answer_cooldown = 60  # seconds
 auto_show_answer = True
 auto_show_time = time_limit + 30  # seconds
 auto_rate_again = True
@@ -47,7 +47,7 @@ auto_rate_time = 30
 #rate_good_keybind = '\\'
 #rate_easy_keybind = ';'
 #undo_answer_keybind = '.'
-close_app_keybind = '-'  # Use + between combinations. Numbers are for num pad.
+close_app_keybind = 'f21'  # Use + between combinations. Numbers are for num pad.
 pause_app_keybind = 'f20'
 show_answer_keybind = 'f14'
 rate_again_keybind = 'f15'
@@ -103,6 +103,8 @@ async def rateCard(rate):
     }
     return await async_post(ANKI_URL, payload)
 
+answer_current_text = "None"
+question_current_text = "None"
 
 async def getNewText():
     global answer_current_text, question_current_text
@@ -113,10 +115,6 @@ async def getNewText():
     except:
         answer_current_text = "No Card"
         question_current_text = "No Card"
-
-
-answer_current_text = "None"
-question_current_text = "None"
 
 
 class KeyWatcher:
@@ -229,7 +227,7 @@ async def windowThing(window):
     current_text = question_current_text
     current_step = key_watcher.answer_showing
 
-    while current_step == key_watcher.answer_showing and current_text == question_current_text and key_watcher.running:
+    while current_step == key_watcher.answer_showing and current_text == question_current_text and key_watcher.running and not key_watcher.paused:
         await asyncio.sleep(0.1)
         now = time.time()
         fadeAmount = min((now - startTime) / time_limit, 1) ** 3
@@ -245,9 +243,6 @@ async def windowThing(window):
             window.set_opacity(1)
         else:
             window.set_opacity(fadeAmount)
-        while key_watcher.paused:
-            await asyncio.sleep(0.1)
-            window.set_opacity(0)
         QtCore.QCoreApplication.processEvents()
 
     window.set_opacity(0)
@@ -257,6 +252,7 @@ async def windowThing(window):
 
 
 async def main():
+    global question_current_text
     loop = asyncio.get_running_loop()
     asyncio.create_task(key_watcher.update_text_loop())
     loop.run_in_executor(None, key_watcher.start_watching)
@@ -282,6 +278,8 @@ async def main():
 
     while key_watcher.running:
         print("cooldown!")
+        while key_watcher.paused:
+            await asyncio.sleep(0.1)
         startTime = time.time()
         now = time.time()
         while not now - startTime > answer_cooldown and key_watcher.running and not key_watcher.answer_showing:
