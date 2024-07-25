@@ -5,24 +5,12 @@ from aqt import mw
 import os
 import time
 import sys
-
-try:
-    import keyboard
-except ImportError:
-    print("##########################################################################################################")
-    script_path = os.path.dirname(os.path.realpath(__file__))
-    sys.path.insert(0,script_path)
-    print(sys.path)
-    print("##########################################################################################################")
-
-    # os.system('python -m pip install keyboard')
+sys.path.insert(0,os.path.dirname(os.path.realpath(__file__)))
 import keyboard
+# from PyQt5 import QtCore, QtGui, QtWidgets, QtTest
 
-try:
-    from PyQt5 import QtCore, QtGui, QtWidgets, QtTest
-except ImportError:
-    os.system('python -m pip install PyQt5')
-from PyQt5 import QtCore, QtGui, QtWidgets, QtTest
+# import aqt.qt as qt
+from aqt.qt import QLabel, QVBoxLayout, QFont, QCoreApplication, QApplication, QWidget, Qt
 
 qWait = QtTest.QTest.qWait
 
@@ -106,27 +94,27 @@ answer_current_text = "None"
 question_current_text = "None"
 
 
-class AnkiWindow(QtWidgets.QWidget):
+class AnkiWindow(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowFlags(
-            QtCore.Qt.FramelessWindowHint |
-            QtCore.Qt.WindowStaysOnTopHint |
-            QtCore.Qt.Tool |
-            QtCore.Qt.WindowTransparentForInput
+            Qt.WindowType.FramelessWindowHint |
+            Qt.WindowType.WindowStaysOnTopHint |
+            Qt.WindowType.Tool |
+            Qt.WindowType.WindowTransparentForInput
         )
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
-        self.setAttribute(QtCore.Qt.WA_ShowWithoutActivating)
-        self.setFocusPolicy(QtCore.Qt.NoFocus)
-        self.layout = QtWidgets.QVBoxLayout()
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.layout = QVBoxLayout()
         self.setLayout(self.layout)
 
-        self.text_widget = QtWidgets.QLabel("", self)
-        self.text_widget.setAlignment(QtCore.Qt.AlignCenter)
+        self.text_widget = QLabel("", self)
+        self.text_widget.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.layout.addWidget(self.text_widget)
 
-        self.question_text_widget = QtWidgets.QLabel("", self)
-        self.question_text_widget.setAlignment(QtCore.Qt.AlignCenter)
+        self.question_text_widget = QLabel("", self)
+        self.question_text_widget.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.layout.addWidget(self.question_text_widget)
 
         self.showFullScreen()
@@ -140,13 +128,13 @@ class AnkiWindow(QtWidgets.QWidget):
         screen_width = screen_rect.width()
 
         font_size = int(min(screen_width * text_size / (len(question_current_text)), 450))
-        font = QtGui.QFont("BIZ UDGothic", font_size)
+        font = QFont("BIZ UDGothic", font_size)
         self.text_widget.setFont(font)
         self.text_widget.setText(question_current_text)
         self.text_widget.setStyleSheet(f"color: {text_color}; background: transparent;")
 
         font_size_question = int(min(screen_width * text_size / (len(answer_current_text)), 400))
-        font_question = QtGui.QFont("BIZ UDGothic", font_size_question)
+        font_question = QFont("BIZ UDGothic", font_size_question)
         self.question_text_widget.setFont(font_question)
         self.question_text_widget.setText(answer_current_text)
         self.question_text_widget.setStyleSheet(f"color: {text_color}; background: transparent;")
@@ -176,7 +164,7 @@ def windowThing(window):
             window.set_opacity(1)
         else:
             window.set_opacity(fadeAmount)
-        QtCore.QCoreApplication.processEvents()
+        QCoreApplication.processEvents()
 
     window.set_opacity(0)
 
@@ -187,7 +175,7 @@ def windowThing(window):
 def main():
     global question_current_text
 
-    app = QtWidgets.QApplication([])
+    app = QApplication([])
     window = AnkiWindow()
 
     while True:
