@@ -5,10 +5,6 @@ from aqt import mw
 import os
 import time
 
-try:
-    import keyboard
-except ImportError:
-    os.system('python -m pip install keyboard')
 import keyboard
 
 try:
@@ -65,13 +61,12 @@ def rateCard(ease):
     mw.reviewer.card.answer(ease)
 
 
-running = True
 answer_showing = False
-paused = False
+paused = True
 
 
 def on_key_event(e):
-    global running, answer_showing, paused
+    global answer_showing, paused
     if e.scan_code in range(2, 12):  # Remove "in range(2,12)" to allow normal numbers
         return False
     if keyboard.is_pressed(rate_again_keybind):
@@ -150,13 +145,13 @@ class AnkiWindow(QtWidgets.QWidget):
         self.setWindowOpacity(opacity)
 
 
-async def windowThing(window):
+def windowThing(window):
     global question_current_text, answer_showing
     startTime = time.time()
     current_text = question_current_text
     current_step = answer_showing
 
-    while current_step == answer_showing and current_text == question_current_text and running and not paused:
+    while current_step == answer_showing and current_text == question_current_text and not paused:
         qWait(100)
         now = time.time()
         fadeAmount = min((now - startTime) / time_limit, 1) ** 3
@@ -184,12 +179,12 @@ def main():
     app = QtWidgets.QApplication([])
     window = AnkiWindow()
 
-    while running:
+    while True:
         while paused:
             qWait(100)
         startTime = time.time()
         now = time.time()
-        while not now - startTime > answer_cooldown and running and not answer_showing:
+        while not now - startTime > answer_cooldown and not answer_showing:
             window.update_text()
             qWait(100)
             now = time.time()
