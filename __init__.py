@@ -1,6 +1,6 @@
 # Author: ungodlyaura
 # Send bug reports or feature requests on the GitHub: https://github.com/ungodlyaura/AnkiAnnoyer
-
+print("starting1")
 from aqt import mw
 import os
 import time
@@ -11,12 +11,12 @@ import keyboard
 
 # import aqt.qt as qt
 from aqt.qt import QLabel, QVBoxLayout, QFont, QCoreApplication, QApplication, QWidget, Qt
+print("starting2")
 
-qWait = QtTest.QTest.qWait
 
 # Timing
-time_limit = 120  # seconds
-answer_cooldown = 60  # seconds
+time_limit = 12  # seconds
+answer_cooldown = 6  # seconds
 auto_show_answer = True
 auto_show_time = time_limit + 30  # seconds
 auto_rate_again = True
@@ -69,21 +69,27 @@ def on_key_event(e):
     if e.scan_code in range(2, 12):  # Remove "in range(2,12)" to allow normal numbers
         return False
     if keyboard.is_pressed(rate_again_keybind):
+        print("rate again")
         answer_showing = False
         rateCard(1)
     if keyboard.is_pressed(rate_bad_keybind):
+        print("rate bad")
         answer_showing = False
         rateCard(2)
     if keyboard.is_pressed(rate_good_keybind):
+        print("rate good")
         answer_showing = False
         rateCard(3)
     if keyboard.is_pressed(rate_easy_keybind):
+        print("rate easy")
         answer_showing = False
         rateCard(4)
     if keyboard.is_pressed(undo_answer_keybind):
+        print("undo answer")
         answer_showing = False
         undoAnswer()
     if keyboard.is_pressed(show_answer_keybind):
+        print("show answer")
         answer_showing = True
         showAnswer()
 
@@ -151,13 +157,15 @@ def windowThing(window):
     current_step = answer_showing
 
     while current_step == answer_showing and current_text == question_current_text and not paused:
-        qWait(100)
+        # qWait(100)
         now = time.time()
         fadeAmount = min((now - startTime) / time_limit, 1) ** 3
         if auto_show_answer and not answer_showing and now - startTime > auto_show_time:
+            print("Auto showing answer")
             answer_showing = True
             showAnswer()
         elif auto_rate_again and answer_showing and current_step == True and now - startTime > auto_rate_time:
+            print("Auto rate again")
             answer_showing = False
             rateCard(1)
         if answer_showing and instant_answer:
@@ -179,13 +187,18 @@ def main():
     window = AnkiWindow()
 
     while True:
+        print("cooldown!")
         while paused:
-            qWait(100)
+            QCoreApplication.processEvents()
+            pass
+            # qWait(100)
         startTime = time.time()
         now = time.time()
         while not now - startTime > answer_cooldown and not answer_showing:
+            QCoreApplication.processEvents()
+            print(question_current_text)
             window.update_text()
-            qWait(100)
+            # qWait(100)
             now = time.time()
         if not answer_showing:
             windowThing(window)
@@ -196,5 +209,4 @@ def main():
     window.close()
 
 
-if __name__ == "__main__":
-    main()
+main()
