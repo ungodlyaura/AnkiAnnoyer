@@ -4,6 +4,7 @@
 import os
 import sys
 import threading
+import re
 
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
 import keyboard
@@ -56,16 +57,24 @@ paused = False  # Is the addon paused upon loading?
 
 cooldown = False
 startTime = time.time()
-
+styleRegex = re.compile(r"<style.*>(.*)</style>",re.M | re.S)
+anchorRegex = re.compile(r"<a.*>(.*)</a>",re.M | re.S)
 
 def show_answer():
     # noinspection PyProtectedMember
     mw.reviewer._showAnswer()
 
-
 def undo_answer():
     mw.undo()
 
+def strip_styles(string):
+    return re.sub(styleRegex, "", string)
+
+def strip_anchors(string):
+    return re.sub(anchorRegex, r"\g<1>", string)
+
+def format_card(string):
+    return strip_anchors(strip_styles(string))
 
 def rate_card(ease):
     if mw.reviewer.state == "question":
@@ -91,6 +100,7 @@ class WindowObject(QWidget):
 
     def __init__(self):
         super().__init__()
+        self.setWindowTitle("AnkiAnnoyer") # Makes window easy to target for kwin window rules
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint |
             Qt.WindowType.WindowStaysOnTopHint |
@@ -127,9 +137,10 @@ class WindowObject(QWidget):
         question_current_text = "None"
 
         if mw.reviewer.card and mw.reviewer.card.answer():
-            print (mw.reviewer.card.question())
-            answer_current_text = mw.reviewer.card.answer()
-            question_current_text = mw.reviewer.card.question()
+            answer_current_text = format_card(mw.reviewer.card.answer())
+            question_current_text = format_card(mw.reviewer.card.question())
+            print("Question Text:", question_current_text);
+            print("Answer Text:", answer_current_text);
 
         screen = self.screen()
         screen_width = 1920 # type: int
@@ -148,6 +159,7 @@ class WindowObject(QWidget):
         self.answer_text_widget.setFont(font_question)
         self.answer_text_widget.setText(answer_current_text)
         self.answer_text_widget.setStyleSheet(f"color: {text_color}; background: transparent;")
+
         if mw.reviewer.state == "question":
             self.question_text_widget.setVisible(True)
             self.answer_text_widget.setVisible(False)
@@ -156,8 +168,10 @@ class WindowObject(QWidget):
             self.answer_text_widget.setVisible(True)
 
     def set_opacity(self, opacity):
-        pass
-        # self.setWindowOpacity(opacity)
+        # TODO: Doesn't work anymore?
+        # Warning as follows: "Qt warning: This plugin does not support setting window opacity"
+        # Might just be a linux issue, maybe try target the QLabel (*_text_widget) instead?
+        self.setWindowOpacity(opacity)
 
 
 class BackgroundTask(threading.Thread):
