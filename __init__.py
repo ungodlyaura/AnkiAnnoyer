@@ -123,6 +123,7 @@ class WindowObject(QWidget):
         question_current_text = "None"
 
         if mw.reviewer.card and mw.reviewer.card.answer():
+            print (mw.reviewer.card.question())
             answer_current_text = mw.reviewer.card.answer()
             question_current_text = mw.reviewer.card.question()
 
