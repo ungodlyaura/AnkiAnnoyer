@@ -39,14 +39,16 @@ auto_show_time = time_limit + 30  # seconds
 auto_rate_again = True
 auto_rate_time = 30
 # Keybindings
-#close_app_keybind = '-'  # Use + between combinations. Numbers are for num pad.
-#pause_app_keybind = '='
-#show_answer_keybind = '\''
-#rate_again_keybind = '['
-#rate_bad_keybind = ']'
-#rate_good_keybind = '\\'
-#rate_easy_keybind = ';'
-#undo_answer_keybind = '.'
+'''
+close_app_keybind = '-'  # Use + between combinations. Numbers are for num pad.
+pause_app_keybind = '='
+show_answer_keybind = '\''
+rate_again_keybind = '['
+rate_bad_keybind = ']'
+rate_good_keybind = '\\'
+rate_easy_keybind = ';'
+undo_answer_keybind = '.'
+'''
 close_app_keybind = 'f21'  # Use + between combinations. Numbers are for num pad.
 pause_app_keybind = 'f20'
 show_answer_keybind = 'f14'
@@ -55,7 +57,8 @@ rate_bad_keybind = 'f16'
 rate_good_keybind = 'f17'
 rate_easy_keybind = 'f18'
 undo_answer_keybind = 'f19'
-# Text Type
+# Text Options
+opacity_scale = 3  # 1 = linear | higher means exponential | recommend around 3
 text_color = "red"
 text_size = 1
 # Pathway
@@ -231,12 +234,12 @@ async def windowThing(window):
     while current_step == key_watcher.answer_showing and current_text == question_current_text and key_watcher.running and not key_watcher.paused:
         await asyncio.sleep(0.1)
         now = time.time()
-        fadeAmount = min((now - startTime) / time_limit, 1) ** 3
+        fadeAmount = min((now - startTime) / time_limit, 1) ** opacity_scale
         if auto_show_answer and not key_watcher.answer_showing and now - startTime > auto_show_time:
             print("Auto showing answer")
             key_watcher.answer_showing = True
             await showAnswer()
-        elif auto_rate_again and key_watcher.answer_showing and current_step == True and now - startTime > auto_rate_time:
+        elif auto_rate_again and key_watcher.answer_showing and current_step and now - startTime > auto_rate_time:
             print("Auto rate again")
             key_watcher.answer_showing = False
             await rateCard(1)
