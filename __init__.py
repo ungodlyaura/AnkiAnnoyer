@@ -3,12 +3,13 @@
 
 import os
 import sys
+import threading
 
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
 import keyboard
 import time
 from aqt import mw, gui_hooks
-from aqt.qt import QLabel, QVBoxLayout, QFont, QCoreApplication, QApplication, QWidget, Qt
+from aqt.qt import QLabel, QVBoxLayout, QFont, QCoreApplication, QWidget, Qt, pyqtSignal, QMetaObject, Q_ARG
 
 # Timing
 time_limit = 12  # seconds
@@ -59,9 +60,11 @@ def undo_answer():
 
 def rate_card(ease):
     if mw.reviewer.state == "question":
+        pass
         # noinspection PyProtectedMember
         mw.reviewer._showAnswer()
-    mw.reviewer.card.answer(ease)
+    # noinspection PyProtectedMember
+    mw.reviewer._answerCard(ease)
 
 
 paused = False
@@ -98,8 +101,18 @@ def on_key_event(e):
 keyboard.hook(on_key_event)
 
 
+def process_events():
+    QCoreApplication.processEvents()
+
+
 # Use for creating an invisible window object that displays text
 class WindowObject(QWidget):
+    update_text_signal = pyqtSignal()
+    set_opacity_signal = pyqtSignal(float)
+    process_events_signal = pyqtSignal()
+    show_answer_signal = pyqtSignal()
+    rate_signal = pyqtSignal(int)
+
     def __init__(self):
         super().__init__()
         self.setWindowFlags(
@@ -123,12 +136,23 @@ class WindowObject(QWidget):
         self.layout.addWidget(self.question_text_widget)
 
         self.showFullScreen()
-        self.update_text()
+
+        self.update_text_signal.connect(self.update_text)
+        self.set_opacity_signal.connect(self.set_opacity)
+        self.process_events_signal.connect(process_events)
+        self.show_answer_signal.connect(show_answer)
+        self.rate_signal.connect(rate_card)
 
     def update_text(self):
+        print("updating text")
         global text_color, text_size
         answer_current_text = mw.reviewer.card.answer()
+        if not answer_current_text:
+            answer_current_text = "None"
         question_current_text = mw.reviewer.card.question()
+        if not question_current_text:
+            answer_current_text = "None"
+        print(answer_current_text)
         screen = self.screen()
         screen_rect = screen.availableGeometry()
         screen_width = screen_rect.width()
@@ -153,61 +177,77 @@ class WindowObject(QWidget):
         self.setWindowOpacity(opacity)
 
 
-def window_loop(window):
-    global cooldown, startTime
-    startTime = time.time()
-    while not cooldown:
-        now = time.time()
-        window.set_opacity(min((now - startTime) / time_limit, 1) ** opacity_scale)
-        QCoreApplication.processEvents()
-        if mw.reviewer.state == "question" and auto_show_answer and now - startTime > auto_show_time:
-            print("Auto showing answer")
-            show_answer()
-        elif mw.reviewer.state == "answer" and auto_rate_again and now - startTime > auto_rate_time:
-            print("Auto rate again")
-            rate_card(1)
-        # wait
-        pass
+class BackgroundTask(threading.Thread):
+    def __init__(self, window):
+        super().__init__()
+        self.window = window
+        self.daemon = True
+
+    def new_card(self):
+        global startTime
+        startTime = time.time()
+        print("new card")
+        while not cooldown and not paused:
+            now = time.time()
+            opacity = min((now - startTime) / time_limit, 1) ** opacity_scale
+            # Emit signal to update opacity
+            self.window.set_opacity_signal.emit(opacity)
+            self.window.update_text_signal.emit()
+            print(opacity)
+            self.window.process_events_signal.emit()
+            if mw.reviewer.state == "question" and auto_show_answer and now - startTime > auto_show_time:
+                print("Auto showing answer")
+                self.window.show_answer_signal.emit()
+            elif mw.reviewer.state == "answer" and auto_rate_again and now - startTime > auto_rate_time:
+                print("Auto rate again")
+                self.window.rate_signal.emit(1)
+
+            time.sleep(0.1)
+
+    def run(self):
+        global cooldown, paused
+        # Make the window object (that displays text on screen)
+
+        while not paused:
+            # Pause the script for the cooldown time
+            print("cooldown")
+            cooldown_start_time = time.time()
+            while mw.reviewer.state != "answer" and not time.time() - cooldown_start_time > answer_cooldown:
+                self.window.process_events_signal.emit()
+                time.sleep(0.1)
+            cooldown = False
+
+            # If window_loop ending, it means new card.
+            self.new_card()
+            self.window.set_opacity_signal.emit(0)
+
+        self.window.close()
 
 
-def main():
-    global cooldown
-    # Make the window object (that displays text on screen)
-    app = QApplication([])
-    window = WindowObject()
-
-    while True:
-        # Pause the script for the cooldown time
-        cooldown_start_time = time.time()
-        while mw.reviewer.state == "question" and not time.time() - cooldown_start_time > answer_cooldown:
-            QCoreApplication.processEvents()
-            pass
-            # wait
-        cooldown = False
-
-        # If window_loop ending, it means new card.
-        window_loop(window)
-        window.set_opacity(0)
-
-    window.close()
-
-
-def show_question():
+def on_show_question(card):
     global startTime, cooldown
-    # show_question means new card, so start a cooldown
+    print("question shown")
     cooldown = True
 
 
-def show_answer():
+def on_show_answer(card):
     global startTime, instant_answer, time_limit
-
+    print("answer shown")
     if instant_answer:
         startTime = startTime - time_limit
     else:
         startTime = time.time()
 
 
-gui_hooks.reviewer_did_show_question.append(show_question)
-gui_hooks.reviewer_did_show_answer.append(show_answer)
+gui_hooks.reviewer_did_show_question.append(on_show_question)
+gui_hooks.reviewer_did_show_answer.append(on_show_answer)
 
-#main()
+
+def main():
+    print("running main")
+    window = WindowObject()
+    background_task = BackgroundTask(window)
+    background_task.start()
+
+
+main()
