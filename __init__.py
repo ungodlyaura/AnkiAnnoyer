@@ -11,6 +11,10 @@ import time
 from aqt import mw, gui_hooks
 from aqt.qt import QLabel, QVBoxLayout, QFont, QCoreApplication, QWidget, Qt, pyqtSignal
 
+# Appease editor red squiggles - ensure mw is AnkiQt not None
+if not mw:
+    raise ImportError("Expected mw to be AnkiQt, instead was None")
+
 # Timing
 time_limit = 12  # seconds
 answer_cooldown = 6  # seconds
@@ -96,16 +100,16 @@ class WindowObject(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.layout = QVBoxLayout()
-        self.setLayout(self.layout)
+        self.myLayout = QVBoxLayout()
+        self.setLayout(self.myLayout)
 
         self.question_text_widget = QLabel("", self)
         self.question_text_widget.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.layout.addWidget(self.question_text_widget)
+        self.myLayout.addWidget(self.question_text_widget)
 
         self.answer_text_widget = QLabel("", self)
         self.answer_text_widget.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.layout.addWidget(self.answer_text_widget)
+        self.myLayout.addWidget(self.answer_text_widget)
 
         self.showFullScreen()
 
@@ -128,8 +132,10 @@ class WindowObject(QWidget):
             question_current_text = mw.reviewer.card.question()
 
         screen = self.screen()
-        screen_rect = screen.availableGeometry()
-        screen_width = screen_rect.width()
+        screen_width = 1920 # type: int
+        if screen:
+            screen_rect = screen.availableGeometry()
+            screen_width = screen_rect.width()
 
         font_size = int(min(screen_width * text_size / (len(question_current_text)), 450))
         font = QFont(font_style, font_size)
@@ -150,7 +156,8 @@ class WindowObject(QWidget):
             self.answer_text_widget.setVisible(True)
 
     def set_opacity(self, opacity):
-        self.setWindowOpacity(opacity)
+        pass
+        # self.setWindowOpacity(opacity)
 
 
 class BackgroundTask(threading.Thread):
