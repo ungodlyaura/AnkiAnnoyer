@@ -1,0 +1,32 @@
+
+{
+  "time_limit": 12,
+  "answer_cooldown": 6,
+  "auto_show_answer": true,
+  "auto_show_time": 30,
+  "auto_rate_again":true,
+  "auto_rate_time": 30,
+  "instant_answer": true,
+
+  "pause_app_keybind": "=",
+  "show_answer_keybind": "'",
+  "rate_again_keybind": "[",
+  "rate_bad_keybind": "]",
+  "rate_good_keybind": "\\",
+  "rate_easy_keybind": ";",
+  "undo_answer_keybind": ".",
+
+  "opacity_scale": 3,
+  "text_color": "red",
+  "text_size": 5,
+  "text_size2": 1,
+  "font_style": "BIZ UDGothic"
+
+}
+
+
+
+
+
+
+
