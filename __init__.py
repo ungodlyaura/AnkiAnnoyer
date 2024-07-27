@@ -4,6 +4,7 @@
 import os
 import sys
 import threading
+import re
 
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
 import keyboard
@@ -11,11 +12,17 @@ import time
 from aqt import mw, gui_hooks
 from aqt.qt import QLabel, QVBoxLayout, QFont, QCoreApplication, QWidget, Qt, pyqtSignal
 
+# Appease editor red squiggles - ensure mw is AnkiQt not None
+if not mw:
+    raise ImportError("Expected mw to be AnkiQt, instead was None")
+
 config = mw.addonManager.getConfig(__name__)
 
 paused = False  # Is the addon paused upon loading?
 cooldown = False
 startTime = time.time()
+styleRegex = re.compile(r"<style.*>(.*)</style>", re.M | re.S)
+anchorRegex = re.compile(r"<a.*>(.*)</a>", re.M | re.S)
 
 
 def show_answer():
@@ -25,6 +32,18 @@ def show_answer():
 
 def undo_answer():
     mw.undo()
+
+
+def strip_styles(string):
+    return re.sub(styleRegex, "", string)
+
+
+def strip_anchors(string):
+    return re.sub(anchorRegex, r"\g<1>", string)
+
+
+def format_card(string):
+    return strip_anchors(strip_styles(string))
 
 
 def rate_card(ease):
@@ -51,6 +70,7 @@ class WindowObject(QWidget):
 
     def __init__(self):
         super().__init__()
+        self.setWindowTitle("AnkiAnnoyer")  # Makes window easy to target for kwin window rules
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint |
             Qt.WindowType.WindowStaysOnTopHint |
@@ -60,16 +80,16 @@ class WindowObject(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.layout = QVBoxLayout()
-        self.setLayout(self.layout)
+        self.myLayout = QVBoxLayout()
+        self.setLayout(self.myLayout)
 
         self.question_text_widget = QLabel("", self)
         self.question_text_widget.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.layout.addWidget(self.question_text_widget)
+        self.myLayout.addWidget(self.question_text_widget)
 
         self.answer_text_widget = QLabel("", self)
         self.answer_text_widget.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.layout.addWidget(self.answer_text_widget)
+        self.myLayout.addWidget(self.answer_text_widget)
 
         self.showFullScreen()
 
@@ -86,13 +106,16 @@ class WindowObject(QWidget):
         question_current_text = "None"
 
         if mw.reviewer.card and mw.reviewer.card.answer():
-            print(mw.reviewer.card.question())
-            answer_current_text = mw.reviewer.card.answer()
-            question_current_text = mw.reviewer.card.question()
+            answer_current_text = format_card(mw.reviewer.card.answer())
+            question_current_text = format_card(mw.reviewer.card.question())
+            print("Question Text:", question_current_text);
+            print("Answer Text:", answer_current_text);
 
         screen = self.screen()
-        screen_rect = screen.availableGeometry()
-        screen_width = screen_rect.width()
+        screen_width = 1920  # type: int
+        if screen:
+            screen_rect = screen.availableGeometry()
+            screen_width = screen_rect.width()
 
         font_size = int(min(screen_width * config['text_size'] / (len(question_current_text)), 450))
         font = QFont(config['font_style'], font_size)
@@ -104,6 +127,7 @@ class WindowObject(QWidget):
         font_question = QFont(config['font_style'], font_size_question)
         self.answer_text_widget.setFont(font_question)
         self.answer_text_widget.setText(answer_current_text)
+
         self.answer_text_widget.setStyleSheet(f"color: {config['text_color']}; background: transparent;")
         if mw.reviewer.state == "question":
             self.question_text_widget.setVisible(True)
@@ -113,6 +137,9 @@ class WindowObject(QWidget):
             self.answer_text_widget.setVisible(True)
 
     def set_opacity(self, opacity):
+        # TODO: Doesn't work anymore?
+        # Warning as follows: "Qt warning: This plugin does not support setting window opacity"
+        # Might just be a linux issue, maybe try target the QLabel (*_text_widget) instead?
         self.setWindowOpacity(opacity)
 
 
@@ -134,11 +161,13 @@ class BackgroundTask(threading.Thread):
             self.window.update_text_signal.emit()
             self.window.process_events_signal.emit()
 
-            if mw.reviewer.state == "question" and config['auto_show_answer'] and now - startTime > config['auto_show_time']:
+            if mw.reviewer.state == "question" and config['auto_show_answer'] and now - startTime > config[
+                'auto_show_time']:
                 print("Auto showing answer")
                 self.window.show_answer_signal.emit()
                 startTime = time.time()
-            elif mw.reviewer.state == "answer" and config['auto_rate_again'] and now - startTime > config['auto_rate_time']:
+            elif mw.reviewer.state == "answer" and config['auto_rate_again'] and now - startTime > config[
+                'auto_rate_time']:
                 print("Auto rate again")
                 self.window.rate_signal.emit(1)
 
