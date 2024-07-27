@@ -22,6 +22,7 @@ except ImportError:
     print("Trying to install PyQt5")
     os.system('python -m pip install PyQt5')
 from PyQt5 import QtCore, QtGui, QtWidgets, QtTest
+
 qWait = QtTest.QTest.qWait
 
 try:
@@ -39,7 +40,6 @@ auto_show_time = time_limit + 30  # seconds
 auto_rate_again = True
 auto_rate_time = 30
 # Keybindings
-'''
 close_app_keybind = '-'  # Use + between combinations. Numbers are for num pad.
 pause_app_keybind = '='
 show_answer_keybind = '\''
@@ -57,6 +57,7 @@ rate_bad_keybind = 'f16'
 rate_good_keybind = 'f17'
 rate_easy_keybind = 'f18'
 undo_answer_keybind = 'f19'
+'''
 # Text Options
 opacity_scale = 3  # 1 = linear | higher means exponential | recommend around 3
 text_color = "red"
@@ -75,28 +76,32 @@ async def async_post(url, json):
         async with session.post(url, json=json) as response:
             return await response.json()
 
-async def getCurrentCard():
+
+async def get_current_card():
     payload = {
         "action": "guiCurrentCard",
         "version": 5
     }
     return await async_post(ANKI_URL, payload)
 
-async def showAnswer():
+
+async def show_answer():
     payload = {
         "action": "guiShowAnswer",
         "version": 5
     }
     return await async_post(ANKI_URL, payload)
 
-async def undoAnswer():
+
+async def undo_answer():
     payload = {
         "action": "guiUndo",
         "version": 5
     }
     return await async_post(ANKI_URL, payload)
 
-async def rateCard(rate):
+
+async def rate_card(rate):
     payload = {
         "action": "guiAnswerCard",
         "version": 5,
@@ -106,13 +111,15 @@ async def rateCard(rate):
     }
     return await async_post(ANKI_URL, payload)
 
+
 answer_current_text = "None"
 question_current_text = "None"
 
-async def getNewText():
+
+async def get_new_text():
     global answer_current_text, question_current_text
     try:
-        card_data = await getCurrentCard()
+        card_data = await get_current_card()
         answer_current_text = glom(card_data, 'result.fields.' + answer_value + '.value')
         question_current_text = glom(card_data, 'result.fields.' + question_value + '.value')
     except:
@@ -128,7 +135,7 @@ class KeyWatcher:
 
     async def update_text_loop(self):
         while self.running:
-            await getNewText()
+            await get_new_text()
             await asyncio.sleep(1)
 
     def on_key_event(self, e):
@@ -147,32 +154,34 @@ class KeyWatcher:
         if keyboard.is_pressed(rate_again_keybind):
             print("rate again")
             self.answer_showing = False
-            asyncio.run(rateCard(1))
+            asyncio.run(rate_card(1))
         if keyboard.is_pressed(rate_bad_keybind):
             print("rate bad")
             self.answer_showing = False
-            asyncio.run(rateCard(2))
+            asyncio.run(rate_card(2))
         if keyboard.is_pressed(rate_good_keybind):
             print("rate good")
             self.answer_showing = False
-            asyncio.run(rateCard(3))
+            asyncio.run(rate_card(3))
         if keyboard.is_pressed(rate_easy_keybind):
             print("rate easy")
             self.answer_showing = False
-            asyncio.run(rateCard(4))
+            asyncio.run(rate_card(4))
         if keyboard.is_pressed(undo_answer_keybind):
             print("undo answer")
             self.answer_showing = False
-            asyncio.run(undoAnswer())
+            asyncio.run(undo_answer())
         if keyboard.is_pressed(show_answer_keybind):
             print("show answer")
             self.answer_showing = True
-            asyncio.run(showAnswer())
+            asyncio.run(show_answer())
 
     def start_watching(self):
         keyboard.hook(self.on_key_event)
 
+
 key_watcher = KeyWatcher()
+
 
 class AnkiWindow(QtWidgets.QWidget):
     def __init__(self):
@@ -227,22 +236,22 @@ class AnkiWindow(QtWidgets.QWidget):
 
 async def windowThing(window):
     global question_current_text
-    startTime = time.time()
+    start_time = time.time()
     current_text = question_current_text
     current_step = key_watcher.answer_showing
 
     while current_step == key_watcher.answer_showing and current_text == question_current_text and key_watcher.running and not key_watcher.paused:
         await asyncio.sleep(0.1)
         now = time.time()
-        fadeAmount = min((now - startTime) / time_limit, 1) ** opacity_scale
-        if auto_show_answer and not key_watcher.answer_showing and now - startTime > auto_show_time:
+        fadeAmount = min((now - start_time) / time_limit, 1) ** opacity_scale
+        if auto_show_answer and not key_watcher.answer_showing and now - start_time > auto_show_time:
             print("Auto showing answer")
             key_watcher.answer_showing = True
-            await showAnswer()
-        elif auto_rate_again and key_watcher.answer_showing and current_step and now - startTime > auto_rate_time:
+            await show_answer()
+        elif auto_rate_again and key_watcher.answer_showing and current_step and now - start_time > auto_rate_time:
             print("Auto rate again")
             key_watcher.answer_showing = False
-            await rateCard(1)
+            await rate_card(1)
         if key_watcher.answer_showing and instant_answer:
             window.set_opacity(1)
         else:
@@ -267,7 +276,7 @@ async def main():
     viewing_card = True
     while True:
         try:
-            card_data = await getCurrentCard()
+            card_data = await get_current_card()
             question_current_text = glom(card_data, 'result.fields.' + question_value + '.value')
             break
         except KeyboardInterrupt:
@@ -275,7 +284,8 @@ async def main():
         except:
             if viewing_card:
                 viewing_card = False
-                print("Start a studying session! \nSelected question value: " + question_value + " \nSelected answer value: " + answer_value)
+                print(
+                    "Start a studying session! \nSelected question value: " + question_value + " \nSelected answer value: " + answer_value)
             if not key_watcher.running:
                 break
             await asyncio.sleep(0.1)
@@ -286,9 +296,9 @@ async def main():
         while key_watcher.paused:
             QtCore.QCoreApplication.processEvents()
             await asyncio.sleep(0.1)
-        startTime = time.time()
+        start_time = time.time()
         now = time.time()
-        while not now - startTime > answer_cooldown and key_watcher.running and not key_watcher.answer_showing:
+        while not now - start_time > answer_cooldown and key_watcher.running and not key_watcher.answer_showing:
             QtCore.QCoreApplication.processEvents()
             window.update_text()
             await asyncio.sleep(0.1)
@@ -301,5 +311,6 @@ async def main():
             await windowThing(window)
 
     window.close()
+
 
 asyncio.run(main())
