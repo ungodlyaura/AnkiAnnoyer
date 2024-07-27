@@ -137,7 +137,7 @@ class WindowObject(QWidget):
             self.answer_text_widget.setVisible(True)
 
     def set_opacity(self, opacity):
-        # TODO: Doesn't work anymore?
+        # TODO: Doesn't work on linux
         # Warning as follows: "Qt warning: This plugin does not support setting window opacity"
         # Might just be a linux issue, maybe try target the QLabel (*_text_widget) instead?
         self.setWindowOpacity(opacity)
@@ -161,13 +161,11 @@ class BackgroundTask(threading.Thread):
             self.window.update_text_signal.emit()
             self.window.process_events_signal.emit()
 
-            if mw.reviewer.state == "question" and config['auto_show_answer'] and now - startTime > config[
-                'auto_show_time']:
+            if mw.reviewer.state == "question" and config['auto_show_answer'] and now - startTime > config['auto_show_time']:
                 print("Auto showing answer")
                 self.window.show_answer_signal.emit()
                 startTime = time.time()
-            elif mw.reviewer.state == "answer" and config['auto_rate_again'] and now - startTime > config[
-                'auto_rate_time']:
+            elif mw.reviewer.state == "answer" and config['auto_rate_again'] and now - startTime > config['auto_rate_time']:
                 print("Auto rate again")
                 self.window.rate_signal.emit(1)
 
