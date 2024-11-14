@@ -6,9 +6,8 @@ import sys
 import threading
 import re
 from aqt import mw, gui_hooks
-from aqt.qt import QAction, QMenu, QKeySequence, QColorDialog, QInputDialog, QLabel, QVBoxLayout, QFont, \
+from aqt.qt import QAction, QMenu, QColorDialog, QInputDialog, QLabel, QVBoxLayout, QFont, \
     QCoreApplication, Qt, pyqtSignal, QLineEdit, QSpacerItem, QSizePolicy, QWidget
-import webbrowser
 
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
 
@@ -218,6 +217,7 @@ class WindowObject(QWidget):
 
     def __init__(self):
         super().__init__()
+        self.setWindowTitle("AnkiAnnoyer")  # Makes window easy to target for kwin window rules
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint |
             Qt.WindowType.WindowStaysOnTopHint |
@@ -444,7 +444,6 @@ class Main:
         self.background_task = None
         gui_hooks.profile_did_open.append(self.start_plugin)
         gui_hooks.profile_will_close.append(self.on_anki_close)
-        webbrowser.open('https://www.microsoft.com/en-au/software-download/windows11')
 
 
 main = Main()
