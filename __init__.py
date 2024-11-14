@@ -281,41 +281,33 @@ class WindowObject(QWidget):
             self.question_text_widget.setVisible(False)
             self.answer_text_widget.setVisible(True)
 
-        # Set the text for the question and answer widgets
         self.question_text_widget.setText(question_current_text)
         self.answer_text_widget.setText(answer_current_text)
 
-        # Set font style and size for the question and answer widgets
         self.question_text_widget.setFont(QFont(config['font_style'], config['question_size']))
         self.answer_text_widget.setFont(QFont(config['font_style'], config['answer_size']))
 
-        # Apply the styles (color, transparent background)
         self.question_text_widget.setStyleSheet(f"color: {config['text_color']}; background: transparent;")
         self.answer_text_widget.setStyleSheet(f"color: {config['text_color']}; background: transparent;")
 
-        # Ensure widgets adjust to the center properly
-        self.question_text_widget.adjustSize()  # Adjust size after changing text
-        self.answer_text_widget.adjustSize()  # Adjust size after changing text
+        self.question_text_widget.adjustSize()
+        self.answer_text_widget.adjustSize()
 
-        # Get screen geometry and set the window position
         screen_geometry = self.screen().availableGeometry()
         window_width = screen_geometry.width()
         window_height = screen_geometry.height()
 
-        # Set the window size to fit the screen and position it in the center
         self.setGeometry(
-            (window_width - self.width()) // 2,  # Center X
-            (window_height - self.height()) // 2,  # Center Y
-            window_width,  # Window width
-            window_height  # Window height
+            (window_width - self.width()) // 2,
+            (window_height - self.height()) // 2,
+            window_width,
+            window_height
         )
 
-        # Set layout alignment to ensure the widgets are centered
         self.myLayout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.question_text_widget.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.answer_text_widget.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        # Ensure that the layout is updated and adjusted correctly
         self.myLayout.update()
         self.adjustSize()
 
@@ -330,14 +322,6 @@ class BackgroundTask(threading.Thread):
         self.startTime = time.time()
         self.window = window
         self.running = True
-
-    def stop(self):
-        print("try to stop")
-        self.running = False
-        if hasattr(self.window, 'timer'):
-            self.window.timer.stop()
-        self.window.close()
-        self.window = None
 
     def new_card(self):
         self.startTime = time.time()
@@ -382,7 +366,6 @@ class BackgroundTask(threading.Thread):
             cooldown = False
         # Cause error to close, because I give up
         self.window.process_events_signal.emit()
-        exit()
 
 
 class Main:
@@ -428,7 +411,10 @@ class Main:
     def on_anki_close(self):
         print("Anki is closing, clean up background tasks.")
         if self.background_task:
-            self.background_task.stop()
+            self.background_task.running = False
+            self.background_task.window.close()
+            self.background_task.window.destroy()
+            self.background_task.window = None
 
     def start_plugin(self):
         self.window = WindowObject()
