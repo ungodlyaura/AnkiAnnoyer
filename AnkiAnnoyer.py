@@ -40,6 +40,7 @@ auto_show_time = time_limit + 30  # seconds
 auto_rate_again = True
 auto_rate_time = 30
 # Keybindings
+'''
 close_app_keybind = '-'  # Use + between combinations. Numbers are for num pad.
 pause_app_keybind = '='
 show_answer_keybind = '\''
@@ -57,7 +58,6 @@ rate_bad_keybind = 'f16'
 rate_good_keybind = 'f17'
 rate_easy_keybind = 'f18'
 undo_answer_keybind = 'f19'
-'''
 # Text Options
 opacity_scale = 3  # 1 = linear | higher means exponential | recommend around 3
 text_color = "red"
