@@ -5,14 +5,18 @@
 - Many different easy to edit options in the toolbar under AnkiAnnoyer
 
 ## Instructions:
-1. download and place into a folder under AppData/Roaming/Anki2/addons21
+1. download and place into a folder under AppData/Roaming/Anki2/addons21 (or by "View Files" in addon menu)
 2. enable the plugin and start studying
 3. edit settings like question/answer size
 
 # Linux
 
+Directory: ~/.local/share/Anki2/addons21/ (or by "View Files" in addon menu)
+
 Apps cannot set their own window opacity on wayland:
 Force anki to use XWayland by running anki with QT_QPA_PLATFORM="xcb" 
+
+keyboard permissions should work fine on X11, for wayland you probably need to run sudo usermod -a -G input USERNAME (untested)
 
 To add it to your desktop file you probably want to
 Copy the anki desktop file to your user cp /usr/share/applications/anki.desktop ~/.local/share/applications
