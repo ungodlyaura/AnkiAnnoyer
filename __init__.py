@@ -231,7 +231,7 @@ class WindowObject(QWidget):
 
         screen = self.screen().availableGeometry()
         self.setMaximumHeight(screen.height())
-        self.setFixedWidth(screen.width() * 0.8)
+        self.setFixedWidth(int(screen.width() * 0.8))
 
         # Center alignment
         self.myLayout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
