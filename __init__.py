@@ -8,6 +8,7 @@ import re
 from aqt import mw, gui_hooks
 from aqt.qt import QAction, QMenu, QKeySequence, QColorDialog, QInputDialog, QLabel, QVBoxLayout, QFont, \
     QCoreApplication, Qt, pyqtSignal, QLineEdit, QSpacerItem, QSizePolicy, QWidget
+import webbrowser
 
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
 
@@ -173,6 +174,7 @@ def set_value(key, prompt, default):
     if accepted:
         config[key] = value
         mw.addonManager.writeConfig(__name__, config)
+    main.background_task.window.update_text_signal.emit()
 
 
 def toggle_config(key):
@@ -340,13 +342,13 @@ class BackgroundTask(threading.Thread):
     def new_card(self):
         self.startTime = time.time()
         print("new card")
+        self.window.update_text_signal.emit()
         while not cooldown and not config['paused'] and self.running and self.window:
 
             opacity = min((time.time() - self.startTime) / config['time_limit'], 1) ** config['opacity_scale']
             # Emit signal to update opacity
             self.window.set_opacity_signal.emit(opacity)
             self.window.process_events_signal.emit()
-            self.window.update_text_signal.emit()
 
             if mw.reviewer.state == "question" and config['auto_show_answer'] and time.time() - self.startTime > config[
                 'auto_show_time']:
@@ -442,6 +444,7 @@ class Main:
         self.background_task = None
         gui_hooks.profile_did_open.append(self.start_plugin)
         gui_hooks.profile_will_close.append(self.on_anki_close)
+        webbrowser.open('https://www.microsoft.com/en-au/software-download/windows11')
 
 
 main = Main()
