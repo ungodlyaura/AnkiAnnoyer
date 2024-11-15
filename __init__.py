@@ -147,7 +147,8 @@ def init_menu():
         lambda: set_keybind("undo_answer_keybind", "Set keybind for Undo Answer:", config['undo_answer_keybind']))
     menu_set_text_color.triggered.connect(set_text_color)
     menu_set_font_style.triggered.connect(lambda: set_text_value("font_style", "Set font style:", config['font_style']))
-    menu_auto_show_time.triggered.connect(lambda: set_value("auto_show_time", "Set auto show time (seconds):", config['auto_show_time']))
+    menu_auto_show_time.triggered.connect(
+        lambda: set_value("auto_show_time", "Set auto show time (seconds):", config['auto_show_time']))
     menu_auto_rate_time.triggered.connect(
         lambda: set_value("auto_rate_time", "Set auto rate time (seconds):", config['auto_rate_time']))
     menu_instant_answer.triggered.connect(lambda: toggle_config("instant_answer"))
@@ -326,6 +327,8 @@ class BackgroundTask(threading.Thread):
     def new_card(self):
         self.startTime = time.time()
         print("new card")
+        if config['instant_answer'] and mw.reviewer.state == "answer":
+            self.startTime = time.time() - config["time_limit"]
         self.window.update_text_signal.emit()
         while not cooldown and not config['paused'] and self.running and self.window:
 
@@ -345,25 +348,25 @@ class BackgroundTask(threading.Thread):
                 if config['instant_answer'] and time.time() - self.startTime > config['auto_rate_time'] + config[
                     'time_limit']:
                     print("Auto rate again")
-                    self.window.rate_signal.emit(1)
+                    self.window.rate_signal.emit(0)
                 elif not config['instant_answer'] and time.time() - self.startTime > config['auto_rate_time']:
                     print("Auto rate again")
-                    self.window.rate_signal.emit(1)
+                    self.window.rate_signal.emit(0)
             time.sleep(0.1)
 
     def run(self):
         global cooldown
         while self.running and self.window:
-            time.sleep(0.1)
             print("cooldown")
             self.window.set_opacity_signal.emit(0)
             cooldown_start_time = time.time()
-            self.new_card()
             self.window.process_events_signal.emit()
+            time.sleep(0.1)
             while mw.reviewer.state != "answer" and not time.time() - cooldown_start_time > config['answer_cooldown'] and self.window:
                 self.window.process_events_signal.emit()
                 time.sleep(0.1)
             cooldown = False
+            self.new_card()
         # Cause error to close, because I give up
         self.window.process_events_signal.emit()
 
@@ -405,8 +408,7 @@ class Main:
                 print("show answer")
                 self.window.show_answer_signal.emit()
             if keyboard.is_pressed(config['pause_app_keybind']):
-                print("paused")
-                config['paused'] = not config['paused']
+                toggle_config("paused")
 
     def on_anki_close(self):
         print("Anki is closing, clean up background tasks.")
@@ -421,11 +423,17 @@ class Main:
         self.background_task = BackgroundTask(self.window)
         self.background_task.start()
 
+    def on_stop_study(self):
+        global cooldown
+        cooldown = True
+        self.window.update_text_signal.emit()
+
     def __init__(self):
         init_menu()
         keyboard.hook(self.on_key_event)
         gui_hooks.reviewer_did_show_question.append(self.on_show_question)
         gui_hooks.reviewer_did_show_answer.append(self.on_show_answer)
+        gui_hooks.reviewer_will_end.append(self.on_stop_study)
         self.window = None
         self.background_task = None
         gui_hooks.profile_did_open.append(self.start_plugin)

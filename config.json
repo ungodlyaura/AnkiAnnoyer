@@ -1,12 +1,11 @@
-
 {
   "time_limit": 12,
   "answer_cooldown": 6,
   "auto_show_answer": true,
   "auto_show_time": 30,
-  "auto_rate_again":true,
+  "auto_rate_again":false,
   "auto_rate_time": 5,
-  "instant_answer": true,
+  "instant_answer": false,
 
   "pause_app_keybind": "=",
   "show_answer_keybind": "'",
@@ -18,15 +17,8 @@
 
   "opacity_scale": 3,
   "text_color": "red",
-  "question_size": 90,
-  "answer_size": 90,
+  "question_size": 200,
+  "answer_size": 30,
   "font_style": "BIZ UDGothic",
   "paused": "false"
 }
-
-
-
-
-
-
-
