@@ -16,6 +16,7 @@ import time
 
 # Config and global variables
 config = mw.addonManager.getConfig(__name__)
+print(config)
 
 cooldown = False
 

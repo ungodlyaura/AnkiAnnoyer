@@ -5,7 +5,7 @@
   "auto_show_time": 30,
   "auto_rate_again":false,
   "auto_rate_time": 5,
-  "instant_answer": true
+  "instant_answer": true,
 
   "pause_app_keybind": "=",
   "show_answer_keybind": "'",
