@@ -1,11 +1,11 @@
 {
   "time_limit": 12,
   "answer_cooldown": 6,
-  "auto_show_answer": true,
+  "auto_show_answer": false,
   "auto_show_time": 30,
   "auto_rate_again":false,
   "auto_rate_time": 5,
-  "instant_answer": false,
+  "instant_answer": true
 
   "pause_app_keybind": "=",
   "show_answer_keybind": "'",
