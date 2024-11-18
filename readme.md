@@ -4,6 +4,11 @@
 - You can use keybinds or answer on the card
 - Many different easy to edit options in the toolbar under AnkiAnnoyer
 
+![example](https://github.com/user-attachments/assets/d3f50120-1a37-4137-99ad-43bea1f54431)
+
+![example2](https://github.com/user-attachments/assets/cdddfa81-4544-4f60-944b-2a050a3e574b)
+
+
 ## Instructions:
 1. download and place into a folder under AppData/Roaming/Anki2/addons21 (or by "View Files" in addon menu)
 2. enable the plugin and start studying
