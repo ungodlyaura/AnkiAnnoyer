@@ -2,12 +2,15 @@
 # Send bug reports or feature requests on the GitHub: https://github.com/ungodlyaura/AnkiAnnoyer
 
 import os
+import ctypes
 import sys
 import threading
 import re
 from aqt import mw, gui_hooks
-from aqt.qt import QAction, QMenu, QColorDialog, QInputDialog, QLabel, QVBoxLayout, QFont, \
+from aqt.qt import QAction, QApplication, QMenu, QColorDialog, QInputDialog, QLabel, QVBoxLayout, QFont, \
     QCoreApplication, Qt, pyqtSignal, QLineEdit, QSpacerItem, QSizePolicy, QWidget
+from aqt.qt import QGraphicsView, QGraphicsScene, QGraphicsTextItem, QPen, QBrush
+
 
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
 
@@ -22,6 +25,16 @@ cooldown = False
 
 styleRegex = re.compile(r"<style.*>(.*)</style>", re.M | re.S)
 anchorRegex = re.compile(r"<a.*>(.*)</a>", re.M | re.S)
+
+
+def anki_is_active():
+    user32 = ctypes.windll.user32
+    hwnd = user32.GetForegroundWindow()
+    if not hwnd:
+        return False
+    pid = ctypes.c_ulong()
+    user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+    return pid.value == os.getpid()
 
 
 def show_answer():
@@ -40,10 +53,16 @@ def strip_styles(string):
 def strip_anchors(string):
     return re.sub(anchorRegex, r"\g<1>", string)
 
+fontSizeRegex = re.compile(r"font-size\s*:\s*[^;\"']+;?", re.I)
+
+def strip_font_size(string):
+    return re.sub(fontSizeRegex, "", string)
 
 def format_card(string):
-    return strip_anchors(strip_styles(string))
+    return strip_font_size(strip_anchors(strip_styles(string)))
 
+def clamp_font(size, min_size=8, max_size=200):
+    return max(min(size, max_size), min_size)
 
 def rate_card(ease):
     if mw.reviewer.state == "question":
@@ -108,6 +127,15 @@ def init_menu():
     menu_instant_answer = QAction("Instant Show Answer", mw, checkable=True)
     extra_menu.addAction(menu_opacity_scale)
     extra_menu.addAction(menu_instant_answer)
+
+    menu_hide_when_anki_active = QAction("Hide While Anki Is Focused", mw, checkable=True)
+    menu_hide_when_anki_active.setChecked(config.get("hide_when_anki_active", True))
+    extra_menu.addAction(menu_hide_when_anki_active)
+
+    menu_hide_when_anki_active.triggered.connect(
+        lambda: toggle_config("hide_when_anki_active")
+)
+
 
     # Add primary actions and submenus to the main menu
     mw.addon_view_menu.addAction(menu_toggle)
@@ -204,22 +232,21 @@ def set_font(key, prompt, default):
         mw.addonManager.writeConfig(__name__, config)
 
 
-def process_events():
-    QCoreApplication.processEvents()
 
 
 # Use for creating an invisible window object that displays text
 class WindowObject(QWidget):
     update_text_signal = pyqtSignal()
     set_opacity_signal = pyqtSignal(float)
-    process_events_signal = pyqtSignal()
     show_answer_signal = pyqtSignal()
     rate_signal = pyqtSignal(int)
     undo_signal = pyqtSignal()
+    set_visible_signal = pyqtSignal(bool)
+
 
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("AnkiAnnoyer")  # Makes window easy to target for kwin window rules
+        self.setWindowTitle("AnkiAnnoyer")
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint |
             Qt.WindowType.WindowStaysOnTopHint |
@@ -230,88 +257,71 @@ class WindowObject(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
-        self.myLayout = QVBoxLayout()
-        self.setLayout(self.myLayout)
-
         screen = self.screen().availableGeometry()
-        self.setMaximumHeight(screen.height())
-        self.setFixedWidth(int(screen.width() * 0.8))
-
-        # Center alignment
-        self.myLayout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignHCenter)
-
-        # Spacers and widgets
-        self.top_spacer = QSpacerItem(20, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
-        self.myLayout.addItem(self.top_spacer)
+        self.setGeometry(screen)
 
         self.question_text_widget = QLabel("", self)
-        self.question_text_widget.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
-        self.myLayout.addWidget(self.question_text_widget)
-
         self.answer_text_widget = QLabel("", self)
-        self.answer_text_widget.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
-        self.myLayout.addWidget(self.answer_text_widget)
 
-        self.bottom_spacer = QSpacerItem(20, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
-        self.myLayout.addItem(self.bottom_spacer)
+        for w in (self.question_text_widget, self.answer_text_widget):
+            w.setWordWrap(True)
+            w.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            w.setStyleSheet("background: transparent;")
 
         self.showFullScreen()
 
-        # Signal connections
         self.update_text_signal.connect(self.update_text)
         self.set_opacity_signal.connect(self.set_opacity)
-        self.process_events_signal.connect(process_events)
         self.show_answer_signal.connect(show_answer)
         self.rate_signal.connect(rate_card)
         self.undo_signal.connect(undo_answer)
+        self.set_visible_signal.connect(self.setVisible)
+
+
 
     # Update the text content and ensure central alignment
     def update_text(self):
-        # Get current text from Anki card
-        answer_current_text = "None"
-        question_current_text = "None"
+        question = ""
+        answer = ""
 
-        if mw.reviewer.card and mw.reviewer.card.answer():
-            answer_current_text = format_card(mw.reviewer.card.answer())
-            question_current_text = format_card(mw.reviewer.card.question())
+        if mw.reviewer.card:
+            question = format_card(mw.reviewer.card.question())
+            answer = format_card(mw.reviewer.card.answer())
 
-        # Show question or answer based on reviewer's state
-        if mw.reviewer.state == "question":
-            self.question_text_widget.setVisible(True)
-            self.answer_text_widget.setVisible(False)
-        else:
-            self.question_text_widget.setVisible(False)
-            self.answer_text_widget.setVisible(True)
+        show_question = mw.reviewer.state == "question"
 
-        self.question_text_widget.setText(question_current_text)
-        self.answer_text_widget.setText(answer_current_text)
+        self.question_text_widget.setVisible(show_question)
+        self.answer_text_widget.setVisible(not show_question)
 
-        self.question_text_widget.setFont(QFont(config['font_style'], config['question_size']))
-        self.answer_text_widget.setFont(QFont(config['font_style'], config['answer_size']))
+        q_size = clamp_font(config['question_size'])
+        a_size = clamp_font(config['answer_size'])
 
-        self.question_text_widget.setStyleSheet(f"color: {config['text_color']}; background: transparent;")
-        self.answer_text_widget.setStyleSheet(f"color: {config['text_color']}; background: transparent;")
+        self.question_text_widget.setFont(QFont(config['font_style'], q_size))
+        self.answer_text_widget.setFont(QFont(config['font_style'], a_size))
+
+        self.question_text_widget.setText(question)
+        self.answer_text_widget.setText(answer)
 
         self.question_text_widget.adjustSize()
         self.answer_text_widget.adjustSize()
 
-        screen_geometry = self.screen().availableGeometry()
-        window_width = screen_geometry.width()
-        window_height = screen_geometry.height()
-
-        self.setGeometry(
-            (window_width - self.width()) // 2,
-            (window_height - self.height()) // 2,
-            window_width,
-            window_height
+        self.question_text_widget.setStyleSheet(
+            f"color: {config['text_color']}; background: transparent;"
+        )
+        self.answer_text_widget.setStyleSheet(
+            f"color: {config['text_color']}; background: transparent;"
         )
 
-        self.myLayout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.question_text_widget.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.answer_text_widget.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        self.myLayout.update()
-        self.adjustSize()
+        active = self.question_text_widget if show_question else self.answer_text_widget
+
+        screen = self.screen().availableGeometry()
+        x = (screen.width() - active.width()) // 2
+        y = (screen.height() - active.height()) // 2
+
+        active.move(x, y)
+
+            
 
     def set_opacity(self, opacity):
         # Qt limitation on some platforms may prevent setting window opacity.
@@ -320,23 +330,29 @@ class WindowObject(QWidget):
 
 class BackgroundTask(threading.Thread):
     def __init__(self, window):
-        super().__init__()
+        super().__init__(daemon=True)
         self.startTime = time.time()
         self.window = window
         self.running = True
 
     def new_card(self):
         self.startTime = time.time()
+        self.window.set_opacity_signal.emit(0.0)
         print("new card")
         if config['instant_answer'] and mw.reviewer.state == "answer":
             self.startTime = time.time() - config["time_limit"]
         self.window.update_text_signal.emit()
         while not cooldown and not config['paused'] and self.running and self.window:
+            
+            if config.get("hide_when_anki_active", True):
+                self.window.set_visible_signal.emit(not anki_is_active())
+            else:
+                self.window.set_visible_signal.emit(True)
 
+            
             opacity = min((time.time() - self.startTime) / config['time_limit'], 1) ** config['opacity_scale']
             # Emit signal to update opacity
             self.window.set_opacity_signal.emit(opacity)
-            self.window.process_events_signal.emit()
 
             if mw.reviewer.state == "question" and config['auto_show_answer'] and time.time() - self.startTime > config[
                 'auto_show_time']:
@@ -354,37 +370,40 @@ class BackgroundTask(threading.Thread):
                     print("Auto rate again")
                     self.window.rate_signal.emit(0)
             time.sleep(0.1)
-
+            
     def run(self):
         global cooldown
-        while self.running and self.window:
+        while self.running and self.window and mw.reviewer:
             print("cooldown")
-            self.window.set_opacity_signal.emit(0)
+            
+            self.window.set_opacity_signal.emit(0.0)
             cooldown_start_time = time.time()
-            self.window.process_events_signal.emit()
             time.sleep(0.1)
+
             while mw.reviewer.state != "answer" and not time.time() - cooldown_start_time > config['answer_cooldown'] and self.window:
-                self.window.process_events_signal.emit()
+                
                 time.sleep(0.1)
             cooldown = False
             self.new_card()
-        # Cause error to close, because I give up
-        self.window.process_events_signal.emit()
 
 
 class Main:
     def on_show_question(self, card):
         global cooldown
-        print("question shown")
         cooldown = True
+        self.window.set_opacity_signal.emit(0.0)
         self.window.update_text_signal.emit()
 
+
     def on_show_answer(self, card):
+        if not self.window or not self.background_task:
+            return
         if not config['instant_answer']:
             self.background_task.startTime = time.time()
         else:
             self.background_task.startTime = time.time() - config["time_limit"]
         self.window.update_text_signal.emit()
+
 
     def on_key_event(self, e):
         if not config['paused']:
@@ -412,12 +431,19 @@ class Main:
                 toggle_config("paused")
 
     def on_anki_close(self):
-        print("Anki is closing, clean up background tasks.")
         if self.background_task:
             self.background_task.running = False
-            self.background_task.window.close()
-            self.background_task.window.destroy()
-            self.background_task.window = None
+            self.background_task.join(timeout=1)
+            self.background_task = None
+
+        if self.window:
+            self.window.close()
+            self.window.deleteLater()
+            self.window = None
+
+        if hasattr(self, "keyboard_hook"):
+            keyboard.unhook(self.keyboard_hook)
+
 
     def start_plugin(self):
         self.window = WindowObject()
@@ -426,8 +452,11 @@ class Main:
 
     def on_stop_study(self):
         global cooldown
+        if not self.window:
+            return
         cooldown = True
         self.window.update_text_signal.emit()
+
 
     def __init__(self):
         init_menu()
@@ -439,6 +468,10 @@ class Main:
         self.background_task = None
         gui_hooks.profile_did_open.append(self.start_plugin)
         gui_hooks.profile_will_close.append(self.on_anki_close)
+
+        self.keyboard_hook = keyboard.hook(self.on_key_event)
+        QCoreApplication.instance().aboutToQuit.connect(self.on_anki_close)
+
 
 
 main = Main()
