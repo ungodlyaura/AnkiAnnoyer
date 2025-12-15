@@ -3,7 +3,7 @@
   "answer_cooldown": 6,
   "auto_show_answer": false,
   "auto_show_time": 30,
-  "auto_rate_again":false,
+  "auto_rate_again": false,
   "auto_rate_time": 5,
   "instant_answer": true,
 
@@ -17,8 +17,10 @@
 
   "opacity_scale": 3,
   "text_color": "red",
-  "question_size": 200,
+  "question_size": 50,
   "answer_size": 30,
   "font_style": "BIZ UDGothic",
-  "paused": "false"
+  "paused": "false",
+  "hide_when_anki_active": true,
+  "text_width_percent": 95
 }
